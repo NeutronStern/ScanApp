@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditTextPreference
+        android:key="IP"
+        android:summary="IP адрес для отправки сканируемых данных"
+        android:title="IP адрес"/>
+    <EditTextPreference
+        android:key="port"
+        android:summary="Порт для отправк сканируемых данных"
+        android:title="Порт"/>
+</PreferenceScreen>
