@@ -4,9 +4,12 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -16,6 +19,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.microblink.hardware.camera.CameraType;
 import com.microblink.recognition.InvalidLicenceKeyException;
 import com.microblink.recognizers.BaseRecognitionResult;
@@ -32,32 +38,49 @@ import com.microblink.view.CameraEventsListener;
 import com.microblink.view.recognition.RecognizerView;
 import com.microblink.view.recognition.ScanResultListener;
 
-public class MainActivity extends AppCompatActivity implements ScanResultListener,CameraEventsListener {
+import ru.deklarant.scanapp.ScanCompletedDIalogFragment.OnScanResultDialogClosedListener;
 
-    private static  RecognizerSettings[] recognizerSettings;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
+
+import ru.deklarant.scanapp.ru.deklarant.scanapp.utils.TcpSendTask;
+
+public class MainActivity extends AppCompatActivity implements ScanResultListener, CameraEventsListener, OnScanResultDialogClosedListener {
+
+    private static RecognizerSettings[] recognizerSettings;
     private static RecognizerView mRecognizerView;
-    private static final int PERMISSION_CAMERA_REQUEST_CODE=69;
-    private static String SERIAL_KEY="UZDLKDUJ-76VGLVI7-IVJMRF24-WLMQNR5U-RCQNAZ76-ZEPUKWUK-NI52XIKL-5OMYNKGV";
+    private static final int PERMISSION_CAMERA_REQUEST_CODE = 69;
+    private static String SERIAL_KEY = "UZDLKDUJ-76VGLVI7-IVJMRF24-WLMQNR5U-RCQNAZ76-ZEPUKWUK-NI52XIKL-5OMYNKGV";
+
+    private byte[] barcodeData;
+
+    private SharedPreferences sp;
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Toolbar toolbar=(Toolbar)findViewById(R.id.toolbar);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        mRecognizerView=(RecognizerView)findViewById(R.id.RecognView);
+        mRecognizerView = (RecognizerView) findViewById(R.id.RecognView);
         //Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         //setSupportActionBar(toolbar);
         //установка настроек и проверка доступности распознавания
         RecognizerCompatibilityStatus compabilityStatus = RecognizerCompatibility.getRecognizerCompatibilityStatus(this);
         if (compabilityStatus == RecognizerCompatibilityStatus.RECOGNIZER_SUPPORTED) {
-            RecognizerSettings[] settings=setupSettingsArray();
-            if(!RecognizerCompatibility.cameraHasAutofocus(CameraType.CAMERA_BACKFACE,this)){
-              recognizerSettings=RecognizerSettingsUtils.filterOutRecognizersThatRequireAutofocus(settings);
+            RecognizerSettings[] settings = setupSettingsArray();
+            if (!RecognizerCompatibility.cameraHasAutofocus(CameraType.CAMERA_BACKFACE, this)) {
+                recognizerSettings = RecognizerSettingsUtils.filterOutRecognizersThatRequireAutofocus(settings);
             }
-            RecognitionSettings recognitionSettings=new RecognitionSettings();
+            RecognitionSettings recognitionSettings = new RecognitionSettings();
             recognitionSettings.setRecognizerSettingsArray(settings);
             mRecognizerView.setRecognitionSettings(recognitionSettings);
             //установка слушателей
@@ -70,12 +93,16 @@ public class MainActivity extends AppCompatActivity implements ScanResultListene
                 e.printStackTrace();
             }
             mRecognizerView.create();
-            //setContentView(mRecognizerView);
-        }else{
+            //загружаем настройки
+            sp = PreferenceManager.getDefaultSharedPreferences(this);
+        } else {
             Toast.makeText(this, "К сожалению, Ваше устройство не поддерживает механизм распознавания", Toast.LENGTH_SHORT).show();
             this.finish();
         }
 
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
 
     private RecognizerSettings[] setupSettingsArray() {
@@ -87,13 +114,12 @@ public class MainActivity extends AppCompatActivity implements ScanResultListene
         //отключает сканирование с пустой белой зоной (объявленной в стандарте)
         sett.setNullQuietZoneAllowed(false);
         //итоговый массив настроек
-        return new RecognizerSettings[] { sett };
+        return new RecognizerSettings[]{sett};
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        // you need to pass all activity's lifecycle methods to RecognizerView
         mRecognizerView.start();
     }
 
@@ -114,7 +140,6 @@ public class MainActivity extends AppCompatActivity implements ScanResultListene
     @Override
     protected void onStop() {
         super.onStop();
-        // you need to pass all activity's lifecycle methods to RecognizerView
         mRecognizerView.stop();
     }
 
@@ -148,7 +173,7 @@ public class MainActivity extends AppCompatActivity implements ScanResultListene
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
-            Intent intent=new Intent(this,PrefActivity.class);
+            Intent intent = new Intent(this, PrefActivity.class);
             startActivity(intent);
         }
 
@@ -200,21 +225,45 @@ public class MainActivity extends AppCompatActivity implements ScanResultListene
             if (result instanceof Pdf417ScanResult) {
 
                 Pdf417ScanResult scanResult = (Pdf417ScanResult) result;
-                String barcodeData = scanResult.getStringData();
-                //показ результатов
-                AlertDialog.Builder resultAlert = new AlertDialog.Builder(this);
-                resultAlert.setMessage(barcodeData);
-                resultAlert.setTitle("Результат сканирования");
-                resultAlert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                barcodeData = scanResult.getRawData().getAllData();
+                ScanCompletedDIalogFragment dialog = new ScanCompletedDIalogFragment();
+                Bundle args = new Bundle();
+                args.putByteArray("barcodeData", barcodeData);
+                dialog.setArguments(args);
+                dialog.show(getSupportFragmentManager(), "resultDialog");
+            }
+        }
+    }
+
+    Byte[] toObjects(byte[] bytesPrim) {
+        Byte[] bytes = new Byte[bytesPrim.length];
+
+        int i = 0;
+        for (byte b : bytesPrim) bytes[i++] = b; // Autoboxing
+
+        return bytes;
+    }
+
+    @Override
+    public void OnScanResultDialogClosed(ScanCompletedDIalogFragment.ScanCompletedDialogCode resultCode) {
+        switch (resultCode) {
+            case SEND_TCP_CODE:
+                TcpSendTask task = new TcpSendTask(MainActivity.this);
+                task.setTcpSendEndedListener(new TcpSendTask.OnTcpSendEndedListener() {
                     @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        //продолжаем сканирование
+                    public void OnTcpSendEnded(boolean result) {
+                        Toast.makeText(MainActivity.this, result ? "Отправлено" : "Не отправлено", Toast.LENGTH_SHORT).show();
+                        //пауза, чтобы новое сканирование начиналось не сразу
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         mRecognizerView.resumeScanning(true);
                     }
                 });
-                resultAlert.setCancelable(true);
-                resultAlert.create().show();
-            }
+                task.execute(new Byte[][]{toObjects(barcodeData)});
+                break;
         }
     }
 }

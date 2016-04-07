@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+<TextView
+    android:id="@+id/result_text_view"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" />
+    <RadioGroup
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <RadioButton
+            android:id="@+id/tcp_send_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Отправить по TCP"/>
+        <RadioButton
+            android:id="@+id/bluetooth_send_buttoon"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Отправить по Bluetooth"/>
+    </RadioGroup>
+    <TextView
+        android:id="@+id/no_settings_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#bb0000"
+        android:textAlignment="center"
+        android:visibility="gone"
+        android:text="Не настроены IP адрес и порт для отправки данных"
+        />
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_gravity="center"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent">
+        <Button
+            android:id="@+id/cancel_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Отмена"/>
+         <Button
+             android:id="@+id/settings_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Настроить"/>
+         <Button
+            android:id="@+id/send_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Отправить"/>
+    </LinearLayout>
+
+</LinearLayout>

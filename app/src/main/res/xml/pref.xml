@@ -3,9 +3,12 @@
     <EditTextPreference
         android:key="IP"
         android:summary="IP адрес для отправки сканируемых данных"
-        android:title="IP адрес"/>
+        android:title="IP адрес"
+        android:inputType="number"
+        android:digits="0123456789."/>
     <EditTextPreference
         android:key="port"
         android:summary="Порт для отправк сканируемых данных"
+        android:inputType="number"
         android:title="Порт"/>
 </PreferenceScreen>
